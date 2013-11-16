@@ -1,4 +1,4 @@
-Basic Lock-Free single-producer-single-consumer FIFO buffer
+Basic Templatized Lock-Free Single Producer Single Consumer FIFO Buffer
 =====================
 By Jonatan Wallmander, Vovoid Media Technologies AB in November 2013
 
