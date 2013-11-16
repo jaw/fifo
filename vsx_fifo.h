@@ -50,7 +50,10 @@
 
 */
 
-template< typename T = int64_t, int buffer_size = 4096 >
+template<
+    typename T = int64_t,   // your data type
+    int buffer_size = 4096  // MUST be: >=2 and power of two;
+    >
 class vsx_fifo
 {
 private:
@@ -93,11 +96,9 @@ public:
 
     // advance the cyclic write pointer
     write_pointer++;
-    if (write_pointer == buffer_size)
-      write_pointer = 0;
 
     // write value
-    buffer[write_pointer] = value;
+    buffer[write_pointer & (buffer_size-1) ] = value;
 
     // now make this data available to the consumer
     __sync_fetch_and_add( &live_count, 1);
@@ -123,11 +124,9 @@ public:
 
     // advance the cyclic read pointer
     read_pointer++;
-    if (read_pointer == buffer_size)
-      read_pointer = 0;
 
     // read value
-    result = buffer[read_pointer];
+    result = buffer[read_pointer & (buffer_size-1) ];
 
     // now we have read the value which means it can
     // be re-used, so decrease the live_count
