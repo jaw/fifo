@@ -13,8 +13,6 @@
 
 vsx_fifo<> fifo;
 
-int global_int = 0;
-
 int producer_still_running = 1;
 int64_t producer_sum;
 int64_t consumer_sum;
@@ -39,23 +37,6 @@ __inline__ uint64_t vsx_profiler_rdtsc()
   return (d<<32) | a;
 }
 #endif
-
-
-timespec diff(timespec start, timespec end)
-{
-    timespec temp;
-    if ((end.tv_nsec-start.tv_nsec) < 0)
-    {
-        temp.tv_sec = end.tv_sec - start.tv_sec - 1;
-        temp.tv_nsec = 1000000000 + end.tv_nsec-start.tv_nsec;
-    }
-    else
-    {
-        temp.tv_sec = end.tv_sec - start.tv_sec;
-        temp.tv_nsec = end.tv_nsec - start.tv_nsec;
-    }
-    return temp;
-}
 
 
 pid_t gettid( void )
@@ -84,13 +65,15 @@ void *thread_producer( void *arg )
   int64_t errors = 0;
   int64_t num_produced = 0;
 
+  int64_t* a;
   int64_t r = 1;
 
   for (i = 0; i < INC_TO; i++)
   {
-    if ( fifo.produce(r) )
+    if ( fifo.produce(a) )
     {
       num_produced++;
+      *a = r;
       sum += r;
       //r++;
     } else
@@ -173,19 +156,20 @@ void *thread_consumer_asynch( void *arg )
 
   int64_t errors = 0;
   int64_t sum = 0;
+  int64_t* a;
   int64_t r = 0;
   int64_t first_consumed = 0;
 
   producer_start = vsx_profiler_rdtsc();
   while ( __sync_fetch_and_add( &producer_still_running, 0 ) )
   {
-    if ( fifo.consume_asynch(r) )
+    if ( fifo.consume_asynch(a) )
     {
-      sum += r;
+      sum += *a;
       first_consumed |= 1;
     } else
     {
-      errors+=first_consumed;
+      errors += first_consumed;
     }
   }
   while (fifo.consume(r))

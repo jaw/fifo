@@ -87,7 +87,7 @@ public:
   // returns:
   //   true - value written successfully
   //   false - no more room in the queue, try later
-  inline bool produce(const T &value) __attribute__((always_inline))
+  inline bool produce( const T &value ) __attribute__((always_inline))
   {
     // if the buffer is full, we can't do anything
     if
@@ -102,7 +102,33 @@ public:
     write_pointer++;
 
     // write value
-    buffer[write_pointer & (buffer_size-1) ] = value;
+    buffer[write_pointer & ( buffer_size - 1 ) ] = value;
+
+    // now make this data available to the consumer
+    __sync_fetch_and_add( &live_count, 1);
+    return true;
+  }
+
+  // producer - if there is room in the queue, write to it
+  // returns:
+  //   true - value written successfully
+  //   false - no more room in the queue, try later
+  inline bool produce( T* &value ) __attribute__((always_inline))
+  {
+    // if the buffer is full, we can't do anything
+    if
+    (
+      buffer_size
+      ==
+      live_count   // if our cache is old, it'll be OK next time
+    )
+      return false;
+
+    // advance the cyclic write pointer
+    write_pointer++;
+
+    // write value
+    value = &buffer[write_pointer & ( buffer_size - 1 ) ];
 
     // now make this data available to the consumer
     __sync_fetch_and_add( &live_count, 1);
@@ -110,12 +136,14 @@ public:
   }
 
 
+
+
   // consumer - if a value is available, reads it
   // This tries to consume everything until the queue is empty
   // returns:
   //    true  - value fetched successfully
   //    false - queue is empty, try later
-  inline bool consume(T &result) __attribute__((always_inline))
+  inline bool consume( T &result ) __attribute__((always_inline))
   {
     // is there something to read?
     // if not, return false
@@ -131,7 +159,37 @@ public:
     read_pointer++;
 
     // read value
-    result = buffer[read_pointer & (buffer_size-1) ];
+    result = buffer[ read_pointer & (buffer_size-1) ];
+
+    // now we have read the value which means it can
+    // be re-used, so decrease the live_count
+    __sync_fetch_and_sub( &live_count, 1 );
+
+    return true;
+  }
+
+  // consumer - if a value is available, reads it
+  // This tries to consume everything until the queue is empty
+  // returns:
+  //    true  - value fetched successfully
+  //    false - queue is empty, try later
+  inline bool consume( T* &result ) __attribute__((always_inline))
+  {
+    // is there something to read?
+    // if not, return false
+    if
+    (
+      0
+      ==
+      live_count // if our cache is old, no harm done
+    )
+      return false;
+
+    // advance the cyclic read pointer
+    read_pointer++;
+
+    // read value
+    result = &buffer[ read_pointer & (buffer_size-1) ];
 
     // now we have read the value which means it can
     // be re-used, so decrease the live_count
@@ -153,7 +211,7 @@ public:
   // Returns:
   //    true  - value fetched successfully
   //    false - queue is empty, try later
-  inline bool consume_asynch(T &result) __attribute__((always_inline))
+  inline bool consume_asynch( T &result ) __attribute__((always_inline))
   {
     // is there something to read?
     if (live_count * sizeof(T) < 64 )
@@ -172,6 +230,36 @@ public:
     return true;
   }
 
+  // consumer - if a value is available, reads it
+  // This method tries to stay out of the same cache line as the producer
+  // thus (hopefully) not causing cache contention
+  // You will not get the values instantly however, so this is
+  // better for things like streaming to disk.
+  // If you want to guarantee that you get everything in the queue,
+  // you should read the queue with regular consume(T) at the end
+  // of your thread life span.
+  //
+  // Returns:
+  //    true  - value fetched successfully
+  //    false - queue is empty, try later
+  inline bool consume_asynch( T* &result ) __attribute__((always_inline))
+  {
+    // is there something to read?
+    if (live_count * sizeof(T) < 64 )
+      return false;
+
+    // advance the cyclic read pointer
+    read_pointer++;
+
+    // read value
+    result = &buffer[read_pointer & (buffer_size-1) ];
+
+    // now we have read the value which means it can
+    // be re-used, so decrease the live_count
+    __sync_fetch_and_sub( &live_count, 1 );
+
+    return true;
+  }
 
 
 };
