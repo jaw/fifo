@@ -1,6 +1,8 @@
 /*
 
-  Basic Lock-Free single-producer-single-consumer FIFO buffer (BLFSPSCFIFO)
+  Basic Templatized Lock-Free Single Producer Single Consumer FIFO Buffer
+
+  Note! I dont yet know if this works in all cases.
 
   By Jonatan Wallmander, Vovoid Media Technologies AB in November 2013
 
