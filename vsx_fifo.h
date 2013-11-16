@@ -81,6 +81,8 @@ public:
   {
   }
 
+
+
   // producer - if there is room in the queue, write to it
   // returns:
   //   true - value written successfully
@@ -109,6 +111,7 @@ public:
 
 
   // consumer - if a value is available, reads it
+  // This tries to consume everything until the queue is empty
   // returns:
   //    true  - value fetched successfully
   //    false - queue is empty, try later
@@ -122,6 +125,38 @@ public:
       ==
       live_count // if our cache is old, no harm done
     )
+      return false;
+
+    // advance the cyclic read pointer
+    read_pointer++;
+
+    // read value
+    result = buffer[read_pointer & (buffer_size-1) ];
+
+    // now we have read the value which means it can
+    // be re-used, so decrease the live_count
+    __sync_fetch_and_sub( &live_count, 1 );
+
+    return true;
+  }
+
+
+  // consumer - if a value is available, reads it
+  // This method tries to stay out of the same cache line as the producer
+  // thus (hopefully) not causing cache contention
+  // You will not get the values instantly however, so this is
+  // better for things like streaming to disk.
+  // If you want to guarantee that you get everything in the queue,
+  // you should read the queue with regular consume(T) at the end
+  // of your thread life span.
+  //
+  // Returns:
+  //    true  - value fetched successfully
+  //    false - queue is empty, try later
+  inline bool consume_asynch(T &result) __attribute__((always_inline))
+  {
+    // is there something to read?
+    if (live_count * sizeof(T) < 64 )
       return false;
 
     // advance the cyclic read pointer
