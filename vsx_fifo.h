@@ -62,10 +62,10 @@ private:
   // this is the only variable shared between the threads
   volatile __attribute__((aligned(64))) int64_t live_count;
 
-  // this variable is owned by the producer thread; keep it on its own cache page
+  // this variable is owned by the producer thread; keep it on its own cache line
   int64_t __attribute__((aligned(64))) write_pointer;
 
-  // this variable is owned by consumer thread; keep it on its own cache page
+  // this variable is owned by consumer thread; keep it on its own cache line
   int64_t __attribute__((aligned(64))) read_pointer;
 
   // actual data storage
