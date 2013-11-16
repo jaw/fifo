@@ -1,11 +1,13 @@
-Basic Lock-Free single-producer-single-consumer FIFO buffer (BLFSPSCFIFO)
+Basic Lock-Free single-producer-single-consumer FIFO buffer
 =====================
 By Jonatan Wallmander, Vovoid Media Technologies AB in November 2013
+
+  Note! I dont yet know if this works in all cases.
 
 
   License:
 
-    Public Domain (although, but only if you want to, drop me a line or something :)
+    Public Domain
 
   Features:
 
